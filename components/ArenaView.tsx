@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   Mic, MicOff, PhoneOff, 
@@ -7,6 +8,7 @@ import {
 import { SessionData, TranscriptEntry } from '../types';
 import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
 import html2canvas from 'html2canvas';
+import { APP_CONFIG, SYSTEM_PROMPTS } from '../constants';
 
 interface ArenaViewProps {
   onEnd: (data: SessionData) => void;
@@ -236,10 +238,10 @@ const ArenaView: React.FC<ArenaViewProps> = ({ onEnd, topic, initialImage }) => 
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       
       // Input: 16kHz for Microphone
-      inputAudioContextRef.current = new AudioContextClass({ sampleRate: 16000 });
+      inputAudioContextRef.current = new AudioContextClass({ sampleRate: APP_CONFIG.AUDIO.SAMPLE_RATE_INPUT });
       
       // Output: 24kHz for Gemini response
-      audioContextRef.current = new AudioContextClass({ sampleRate: 24000 });
+      audioContextRef.current = new AudioContextClass({ sampleRate: APP_CONFIG.AUDIO.SAMPLE_RATE_OUTPUT });
 
       // 2. Microphone Stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -248,17 +250,13 @@ const ArenaView: React.FC<ArenaViewProps> = ({ onEnd, topic, initialImage }) => 
       
       // 3. Connect Session
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        model: APP_CONFIG.GEMINI_MODELS.LIVE_INTERACTION,
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: APP_CONFIG.AUDIO.VOICE_NAME } },
           },
-          systemInstruction: `You are a brilliant, creative product co-founder in a "VibeDuet" session. 
-          You are looking at a shared digital whiteboard where the user is visualizing an idea about: "${topic}".
-          Listen to the user, offer constructive feedback, ask clarifying questions, and help refine the concept.
-          You can see the whiteboard content. Refer to specific shapes, notes, or drawings if relevant.
-          Be concise, energetic, and encouraging. Keep responses relatively short to maintain a conversational flow.`,
+          systemInstruction: SYSTEM_PROMPTS.LIVE_SESSION(topic),
         },
         callbacks: {
           onopen: () => {
@@ -309,7 +307,7 @@ const ArenaView: React.FC<ArenaViewProps> = ({ onEnd, topic, initialImage }) => 
                  float32[i] = dataInt16[i] / 32768.0;
                }
                
-               const buffer = ctx.createBuffer(1, float32.length, 24000);
+               const buffer = ctx.createBuffer(1, float32.length, APP_CONFIG.AUDIO.SAMPLE_RATE_OUTPUT);
                buffer.copyToChannel(float32, 0);
 
                const audioSource = ctx.createBufferSource();
@@ -391,13 +389,13 @@ const ArenaView: React.FC<ArenaViewProps> = ({ onEnd, topic, initialImage }) => 
          // We capture the 'world' content div.
          // Note: html2canvas can be slow. We limit scale for performance.
          const canvas = await html2canvas(worldRef.current, {
-           scale: 0.5, // Lower resolution for speed
+           scale: APP_CONFIG.CAPTURE.SCALE, // Lower resolution for speed
            useCORS: true,
            logging: false,
            backgroundColor: null // transparent
          });
          
-         const base64Data = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+         const base64Data = canvas.toDataURL('image/jpeg', APP_CONFIG.CAPTURE.IMAGE_QUALITY).split(',')[1];
          
          sessionPromiseRef.current.then(session => {
             session.sendRealtimeInput({
@@ -411,7 +409,7 @@ const ArenaView: React.FC<ArenaViewProps> = ({ onEnd, topic, initialImage }) => 
        } catch (err) {
          console.warn("Screen capture failed", err);
        }
-    }, 3000); // Every 3 seconds is enough for "real-time" context without killing CPU
+    }, APP_CONFIG.CAPTURE.INTERVAL_MS);
 
     return () => clearInterval(captureInterval);
   }, [connectionState]);
@@ -615,9 +613,6 @@ const ArenaView: React.FC<ArenaViewProps> = ({ onEnd, topic, initialImage }) => 
           style={{ transform }}
         >
              {/* We wrap the content in a specific ref for capture */}
-             {/* To properly capture, we might need to apply the transform to this inner div or just capture the visible area. 
-                 Since html2canvas captures DOM, we wrap everything in a div that represents the "Virtual Board" 
-             */}
              <div ref={worldRef} className="relative w-[3000px] h-[3000px] -translate-x-1/2 -translate-y-1/2">
                  
                  {/* The Generated Infographic (Centered at world 0,0 which is center of this huge div) */}

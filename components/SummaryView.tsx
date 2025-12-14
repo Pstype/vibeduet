@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { 
   Share2, 
@@ -12,6 +13,7 @@ import {
 import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { SessionData, SessionAnalysis } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
+import { APP_CONFIG, SYSTEM_PROMPTS } from '../constants';
 
 interface SummaryViewProps {
   data: SessionData;
@@ -29,8 +31,8 @@ const SummaryView: React.FC<SummaryViewProps> = ({ data, onRestart }) => {
         const transcriptText = data.transcript.map(t => `${t.role}: ${t.text}`).join('\n');
         
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: `Analyze this conversation transcript and provide a structured summary. Transcript: ${transcriptText}`,
+          model: APP_CONFIG.GEMINI_MODELS.TEXT_ANALYSIS,
+          contents: `${SYSTEM_PROMPTS.ANALYSIS_TASK} Transcript: ${transcriptText}`,
           config: {
             responseMimeType: "application/json",
             responseSchema: {

@@ -1,18 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Bot, User, Loader2, Sparkles, Cpu, Radio } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import { APP_CONFIG, SYSTEM_PROMPTS, UI_CONSTANTS } from '../constants';
 
 interface HomeViewProps {
   onStart: (topic: string, infographicUrl: string) => void;
 }
-
-const LOADING_MESSAGES = [
-  "Analyzing semantic context...",
-  "Spinning up Nano-Banana neural pathways...",
-  "Synthesizing abstract visual metaphors...",
-  "Calibrating audio-visual resonance...",
-  "Establishing secure debate environment..."
-];
 
 const HomeView: React.FC<HomeViewProps> = ({ onStart }) => {
   const [topic, setTopic] = useState('');
@@ -23,7 +17,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStart }) => {
   useEffect(() => {
     if (!isLoading) return;
     const interval = setInterval(() => {
-      setLoadingMsgIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+      setLoadingMsgIndex((prev) => (prev + 1) % UI_CONSTANTS.LOADING_MESSAGES.length);
     }, 1500);
     return () => clearInterval(interval);
   }, [isLoading]);
@@ -36,31 +30,16 @@ const HomeView: React.FC<HomeViewProps> = ({ onStart }) => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // Robust Context-Aware Prompt for Infographic
-      const systemPrompt = `
-        Generate a clean, high-quality, whiteboard-style infographic representing the concept of: "${topic}".
-        
-        Visual Style Guidelines:
-        - Hand-drawn aesthetic on a clean white background.
-        - Use marker colors: Black, Blue, Red, and Green.
-        - Diagrammatic elements: arrows, mind-map nodes, simple icons, sticky notes.
-        - Minimalist, organized, and clear.
-        - No photorealism; it should look like a brilliant brainstorming session sketch.
-        - Center composition.
-        - The image should capture the essence of analyzing "${topic}" structurally.
-      `;
-
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: APP_CONFIG.GEMINI_MODELS.IMAGE_GENERATION,
         contents: {
-          parts: [{ text: systemPrompt }]
+          parts: [{ text: SYSTEM_PROMPTS.INFOGRAPHIC(topic) }]
         }
       });
 
       let imageUrl = '';
       
       // Extract Image
-      // Note: The structure requires iterating parts as per guidelines
       if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData) {
@@ -80,8 +59,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStart }) => {
     } catch (error) {
       console.error("Error generating infographic:", error);
       setIsLoading(false);
-      // Fallback if generation fails - allow user to retry or proceed without image could be handled here
-      // For now, we just reset loading to let them try again
+      alert("Failed to generate context image. Please try again or check your API key.");
     }
   };
 
@@ -100,7 +78,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onStart }) => {
            <div className="space-y-2">
              <h2 className="text-2xl font-bold tracking-tight text-white">Initializing VibeDuet</h2>
              <p className="text-green-400/80 font-mono text-sm h-6 transition-all duration-500">
-               {LOADING_MESSAGES[loadingMsgIndex]}
+               {UI_CONSTANTS.LOADING_MESSAGES[loadingMsgIndex]}
              </p>
            </div>
 
