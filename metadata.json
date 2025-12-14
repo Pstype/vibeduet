@@ -1,0 +1,8 @@
+{
+  "name": "VibeDuet ",
+  "description": "A multimodal AI interaction platform featuring live audio visualization and post-session analytics.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
